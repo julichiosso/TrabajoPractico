@@ -14,6 +14,10 @@ namespace TrabajoPractico.Models
 
         public required string Email { get; set; }
 
+        public DateTime FechaRegistro { get; set; }
+
+
+
         //ublic List<Transaccion> Transacciones { get; set; }
     }
 }
