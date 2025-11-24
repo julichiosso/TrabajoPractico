@@ -12,5 +12,7 @@ namespace TrabajoPractico.DTOs
         [Required]
         [EmailAddress]
         public string? Email { get; set; }
+        public DateTime FechaRegistro { get; set; } = DateTime.UtcNow;
+
     }
 }

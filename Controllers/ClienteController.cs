@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using ProyectoFinal.Models;
 using TrabajoPractico.DTOs;
 using TrabajoPractico.Models;
@@ -12,6 +13,7 @@ namespace TrabajoPractico.Controllers
     public class ClienteController : ControllerBase
     {
         private readonly AppDbContext _context;
+   
 
         public ClienteController(AppDbContext context)
         {
@@ -19,12 +21,11 @@ namespace TrabajoPractico.Controllers
         }
 
 
-        
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ClienteDTO>>> Get()
         {
-            var clientes = await _context.Clientes
-                  .ToListAsync();
+            var clientes = await _context.Clientes.OrderBy(c => c.FechaRegistro).ToListAsync();
+
             var clientesDatos = clientes.Select(c => new ClienteDTO
             {
                 Id = c.Id,
@@ -54,11 +55,30 @@ namespace TrabajoPractico.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Client>> Post(Client client)
+        public async Task<ActionResult<ClienteDTO>> Post(ClienteDTO dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var client = new Client
+            {
+                Nombre = dto.Nombre!,
+                Email = dto.Email!,
+                FechaRegistro = DateTime.UtcNow
+            };
+
             _context.Clientes.Add(client);
             await _context.SaveChangesAsync();
-            return CreatedAtAction(nameof(Get), new { id = client.Id }, client);
+
+            var response = new ClienteDTO
+            {
+                Id = client.Id, // generado por la DB
+                Nombre = client.Nombre,
+                Email = client.Email,
+                FechaRegistro = client.FechaRegistro
+            };
+
+            return CreatedAtAction(nameof(Get), new { id = client.Id }, response);
         }
 
         [HttpPut("{id}")]
