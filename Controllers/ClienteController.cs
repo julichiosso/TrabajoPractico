@@ -72,7 +72,7 @@ namespace TrabajoPractico.Controllers
 
             var response = new ClienteDTO
             {
-                Id = client.Id, // generado por la DB
+                Id = client.Id, 
                 Nombre = client.Nombre,
                 Email = client.Email,
                 FechaRegistro = client.FechaRegistro
@@ -100,7 +100,6 @@ namespace TrabajoPractico.Controllers
             {
                 return NotFound();
             }
-            //Eliminar transaccion
             _context.Clientes.Remove(cliente);
             await _context.SaveChangesAsync();
             return NoContent();

@@ -24,7 +24,6 @@ namespace TrabajoPractico.Controllers
         public async Task<ActionResult<IEnumerable<TransactionDto>>> Get()
         {
             var transacciones = await _context.Transacciones.ToListAsync();
-
             var transaccionesDtos = transacciones.Select(t => new TransactionDto
             {
                 Id = t.Id,
@@ -39,31 +38,55 @@ namespace TrabajoPractico.Controllers
             return Ok(transaccionesDtos);
         }
 
+        [HttpGet("{id}")]
+        public async Task<ActionResult<TransactionDto>> GetTransaction(int id)
+        {
+            var t = await _context.Transacciones.FindAsync(id);
+            if (t == null) return NotFound();
 
-        // GET transacciones por cliente
-        [HttpGet("by-client/{id}")]
-        public async Task<ActionResult<IEnumerable<Transaccion>>> GetByClient(int id)
+            var dto = new TransactionDto
+            {
+                Id = t.Id,
+                CryptoCode = t.CryptoCode,
+                Action = t.Accion,
+                ClientId = t.ClienteId,
+                CryptoAmount = t.Cantidad,
+                MontoARS = t.Monto,
+                FechaHora = t.FechaHora
+            };
+
+            return Ok(dto);
+        }
+
+        [HttpGet("by-client/{clientId}")]
+        public async Task<ActionResult<IEnumerable<TransactionDto>>> GetByClient(int clientId)
         {
             var transacciones = await _context.Transacciones
-                .Where(t => t.ClienteId == id)
-                .OrderByDescending(t => t.FechaHora)
+                .Where(t => t.ClienteId == clientId)
                 .ToListAsync();
 
             if (transacciones == null || !transacciones.Any())
-                return NotFound("No hay transacciones para este cliente.");
+                return NotFound("No se encontraron transacciones para este cliente.");
 
-            return Ok(transacciones);
+            var dtos = transacciones.Select(t => new TransactionDto
+            {
+                Id = t.Id,
+                CryptoCode = t.CryptoCode,
+                Action = t.Accion,
+                ClientId = t.ClienteId,
+                CryptoAmount = t.Cantidad,
+                MontoARS = t.Monto,
+                FechaHora = t.FechaHora
+            }).ToList();
+
+            return Ok(dtos);
         }
-
-
-
 
         [HttpGet("precio/{cripto}")]
         public async Task<IActionResult> GetPrecioActual(string cripto)
         {
             try
             {
-                // Normalizamos los nombres
                 string simbolo = cripto.ToLower() switch
                 {
                     "bitcoin" => "btc",
@@ -105,25 +128,28 @@ namespace TrabajoPractico.Controllers
                 return StatusCode(500, $"Error al obtener precio: {ex.Message}");
             }
         }
-        // POST nueva transacción
+
         [HttpPost]
         public async Task<IActionResult> PostTransaccion([FromBody] TransactionDto dto)
         {
-            // Validar la cantidad
+            if (dto == null)
+                return BadRequest("Payload inválido.");
+
             if (dto.CryptoAmount <= 0)
                 return BadRequest("La cantidad debe ser mayor a 0.");
 
-            // Validar la acción
-            if (dto.Action != "buy" && dto.Action != "sale")
-                return BadRequest("Acción inválida. Debe ser 'buy' o 'sale'.");
+            var actionNormalized = (dto.Action ?? "").Trim().ToLower();
+            if (actionNormalized == "compra") actionNormalized = "buy";
+            if (actionNormalized == "venta") actionNormalized = "sale";
 
-            // Verificamos existencia del cliente
+            if (actionNormalized != "buy" && actionNormalized != "sale")
+                return BadRequest("Acción inválida.");
+
             var clienteExiste = await _context.Clientes.AnyAsync(c => c.Id == dto.ClientId);
             if (!clienteExiste)
                 return BadRequest("Cliente no encontrado.");
 
-            // Validar saldo en caso de venta
-            if (dto.Action == "sale")
+            if (actionNormalized == "sale")
             {
                 var comprados = await _context.Transacciones
                     .Where(t => t.ClienteId == dto.ClientId && t.CryptoCode == dto.CryptoCode && t.Accion == "buy")
@@ -133,49 +159,26 @@ namespace TrabajoPractico.Controllers
                     .Where(t => t.ClienteId == dto.ClientId && t.CryptoCode == dto.CryptoCode && t.Accion == "sale")
                     .SumAsync(t => (decimal?)t.Cantidad) ?? 0;
 
-                var saldoDisponible = comprados - vendidos;
+                var saldo = comprados - vendidos;
 
-                if (dto.CryptoAmount > saldoDisponible)
-                    return BadRequest($"No es posible realizar la venta. El saldo disponible de {dto.CryptoCode.ToUpper()} es insuficiente. Disponible: {saldoDisponible:N8}.");
+                if (dto.CryptoAmount > saldo)
+                    return BadRequest($"No tiene saldo suficiente. Disponible: {saldo:N8}");
             }
 
-            // Obtener precio desde CriptoYa
-            decimal precioARS;
-            try
+            if (dto.MontoARS == 0)
             {
-                var crypto = dto.CryptoCode.ToLower();
-                var url = $"https://criptoya.com/api/binance/{crypto}/ars";
-
-                var response = await _httpClient.GetAsync(url);
-                var content = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                    return StatusCode((int)response.StatusCode, $"Error desde CriptoYa: {content}");
-
-                var data = System.Text.Json.JsonSerializer.Deserialize<CriptoYaPriceDto>(
-                    content,
-                    new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true }
-                );
-
-                if (data == null || data.Ask <= 0)
-                    return BadRequest($"No se pudo obtener un precio válido desde CriptoYa. Respuesta: {content}");
-
-                precioARS = data.Ask;
+                var precioActual = await GetPrecioActual(dto.CryptoCode) as OkObjectResult;
+                if (precioActual != null)
+                    dto.MontoARS = Convert.ToDecimal(precioActual.Value);
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, $"Error al obtener el precio desde CriptoYa: {ex.Message}");
-            }
-
-            var montoTotal = Math.Round(dto.CryptoAmount * precioARS, 2);
 
             var transaccion = new Transaccion
             {
                 ClienteId = dto.ClientId,
                 CryptoCode = dto.CryptoCode.ToLower(),
-                Accion = dto.Action,
+                Accion = actionNormalized,
                 Cantidad = dto.CryptoAmount,
-                Monto = montoTotal,
+                Monto = dto.MontoARS,
                 FechaHora = dto.FechaHora
             };
 
@@ -185,45 +188,78 @@ namespace TrabajoPractico.Controllers
             return Ok(new { mensaje = "Transacción registrada con éxito.", transaccion });
         }
 
-        // PUT modificar transacción
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, Transaccion transaccion)
+        public async Task<IActionResult> Put(int id, [FromBody] TransactionDto dto)
         {
-            if (id != transaccion.Id)
-                return BadRequest();
-           
-            _context.Entry(transaccion).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
+            if (dto == null)
+                return BadRequest("Datos inválidos.");
 
-            return NoContent();
-        }
-
-        // DELETE eliminar transacción
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
-        {
             var transaccion = await _context.Transacciones.FindAsync(id);
-
             if (transaccion == null)
-                return NotFound();
+                return NotFound("La transacción no existe.");
 
-            _context.Transacciones.Remove(transaccion);
+            string actionNormalized = null;
+            if (!string.IsNullOrWhiteSpace(dto.Action))
+            {
+                actionNormalized = dto.Action.Trim().ToLower();
+                if (actionNormalized == "compra") actionNormalized = "buy";
+                if (actionNormalized == "venta") actionNormalized = "sale";
+
+                if (actionNormalized != "buy" && actionNormalized != "sale")
+                    return BadRequest("Acción inválida. Use 'buy' o 'sale'.");
+            }
+
+            if (dto.ClientId != 0 && dto.ClientId != transaccion.ClienteId)
+            {
+                var clienteExiste = await _context.Clientes.AnyAsync(c => c.Id == dto.ClientId);
+                if (!clienteExiste)
+                    return BadRequest("Cliente no encontrado.");
+            }
+
+            var willBeSale = actionNormalized == "sale" || (string.IsNullOrEmpty(dto.Action) && transaccion.Accion == "sale");
+            var targetClientId = dto.ClientId != 0 ? dto.ClientId : transaccion.ClienteId;
+            var targetCryptoCode = string.IsNullOrEmpty(dto.CryptoCode) ? transaccion.CryptoCode : dto.CryptoCode;
+
+            if (willBeSale)
+            {
+                var comprados = await _context.Transacciones
+                    .Where(t => t.ClienteId == targetClientId && t.CryptoCode == targetCryptoCode && t.Accion == "buy")
+                    .SumAsync(t => (decimal?)t.Cantidad) ?? 0;
+
+                var vendidos = await _context.Transacciones
+                    .Where(t => t.ClienteId == targetClientId && t.CryptoCode == targetCryptoCode && t.Accion == "sale" && t.Id != id)
+                    .SumAsync(t => (decimal?)t.Cantidad) ?? 0;
+
+                var saldo = comprados - vendidos;
+                var cantidadNueva = dto.CryptoAmount != 0 ? dto.CryptoAmount : transaccion.Cantidad;
+
+                if (cantidadNueva > saldo)
+                    return BadRequest($"No tiene saldo suficiente. Disponible: {saldo:N8}");
+            }
+
+            if (!string.IsNullOrEmpty(dto.CryptoCode))
+                transaccion.CryptoCode = dto.CryptoCode.ToLower();
+
+            if (!string.IsNullOrEmpty(actionNormalized))
+                transaccion.Accion = actionNormalized;
+
+            if (dto.ClientId != 0)
+                transaccion.ClienteId = dto.ClientId;
+
+            if (dto.CryptoAmount != 0)
+                transaccion.Cantidad = dto.CryptoAmount;
+
+            if (dto.MontoARS != 0)
+                transaccion.Monto = dto.MontoARS;
+
+            if (dto.FechaHora != default(DateTime))
+                transaccion.FechaHora = dto.FechaHora;
+
             await _context.SaveChangesAsync();
 
-            return NoContent();
+            return Ok(new { message = "Transacción actualizada con éxito", transaccion });
         }
 
-        public class CriptoYaPriceDto
-        {
-            public decimal Ask { get; set; }
-            public decimal Bid { get; set; }
-            public decimal Last { get; set; }
-        }
-
-
-        // 🕒 GET: api/Transactions/recent
-        // Devuelve las últimas 5 transacciones registradas
-        // ===============================================================
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecentTransactions()
         {
@@ -236,7 +272,7 @@ namespace TrabajoPractico.Controllers
             {
                 id = t.Id,
                 clientName = $"Cliente #{t.ClienteId}",
-                clientEmail = "-", // lo podés reemplazar si tenés tabla Clientes
+                clientEmail = "-",
                 type = t.Accion,
                 crypto = t.CryptoCode,
                 amount = t.Cantidad,
@@ -253,24 +289,19 @@ namespace TrabajoPractico.Controllers
             {
                 using var httpClient = new HttpClient();
 
-                // Mapeo de símbolos a IDs de CoinGecko
                 var mapping = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "btc", "bitcoin" },
-            { "eth", "ethereum" },
-            { "usdc", "usd-coin" },
-            
-        };
+                {
+                    { "btc", "bitcoin" },
+                    { "eth", "ethereum" },
+                    { "usdc", "usd-coin" },
+                };
 
                 if (!mapping.ContainsKey(cripto))
                     return BadRequest("Criptomoneda no soportada.");
 
                 var coinId = mapping[cripto];
-
-                // Endpoint de CoinGecko: precios históricos (últimos 7 días)
-
                 var url = $"https://api.coingecko.com/api/v3/coins/{coinId}/market_chart?vs_currency=usd&days=7";
-                
+
                 var response = await httpClient.GetAsync(url);
 
                 if (!response.IsSuccessStatusCode)
@@ -294,6 +325,47 @@ namespace TrabajoPractico.Controllers
             {
                 return StatusCode(500, $"Error interno: {ex.Message}");
             }
+        }
+
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteTransaction(int id)
+        {
+            var transaction = await _context.Transacciones.FindAsync(id);
+            if (transaction == null) return NotFound();
+
+            _context.Transacciones.Remove(transaction);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
+
+        [HttpPatch("{id}")]
+        public async Task<IActionResult> PatchTransaction(int id, [FromBody] TransactionDto dto)
+        {
+            var transaction = await _context.Transacciones.FindAsync(id);
+            if (transaction == null) return NotFound();
+
+            if (!string.IsNullOrEmpty(dto.CryptoCode))
+                transaction.CryptoCode = dto.CryptoCode;
+
+            if (!string.IsNullOrEmpty(dto.Action))
+                transaction.Accion = dto.Action;
+
+            if (dto.ClientId != 0)
+                transaction.ClienteId = dto.ClientId;
+
+            if (dto.CryptoAmount != 0)
+                transaction.Cantidad = dto.CryptoAmount;
+
+            if (dto.MontoARS != 0)
+                transaction.Monto = dto.MontoARS;
+
+            if (dto.FechaHora != default(DateTime))
+                transaction.FechaHora = dto.FechaHora;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(transaction);
         }
     }
 }

@@ -18,6 +18,5 @@ namespace TrabajoPractico.Models
 
 
 
-        //ublic List<Transaccion> Transacciones { get; set; }
     }
 }

@@ -18,10 +18,6 @@ namespace ProyectoFinal.Controllers
             _httpClient = new HttpClient();
         }
 
-        // ===============================================================
-        // 📊 GET: api/Dashboard
-        // Devuelve todos los datos del dashboard en un único objeto JSON
-        // ===============================================================
         [HttpGet]
         public async Task<IActionResult> GetDashboardData()
         {
@@ -41,13 +37,11 @@ namespace ProyectoFinal.Controllers
                 });
             }
 
-            // ✅ Criptos únicas
             var cryptos = transacciones
                 .Select(t => t.CryptoCode.ToLower())
                 .Distinct()
                 .ToList();
 
-            // ✅ Obtener precios desde CriptoYa
             var preciosActuales = new Dictionary<string, decimal>();
             foreach (var crypto in cryptos)
             {
@@ -65,7 +59,6 @@ namespace ProyectoFinal.Controllers
                 }
             }
 
-            // ✅ Calcular valor total de la cartera
             decimal totalPortfolioValue = 0;
             foreach (var t in transacciones)
             {
@@ -76,12 +69,10 @@ namespace ProyectoFinal.Controllers
                 }
             }
 
-            // 📈 Rendimiento y pérdida/ganancia (simplificado)
             decimal performance24h = 0;
             decimal totalPL = 0;
             string worstPerformer = "-";
 
-            // 🕒 Últimas 5 transacciones
             var recientes = transacciones
                 .Take(5)
                 .Select(t => new
@@ -95,7 +86,6 @@ namespace ProyectoFinal.Controllers
                 })
                 .ToList();
 
-            // 🧩 Devolver el resumen
             return Ok(new
             {
                 totalPortfolioValue,
@@ -106,10 +96,6 @@ namespace ProyectoFinal.Controllers
             });
         }
 
-        // ===============================================================
-        // 🧾 GET: api/Dashboard/summary
-        // Endpoint específico que usa tu frontend en Dashboard.vue
-        // ===============================================================
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary()
         {
@@ -130,25 +116,21 @@ namespace ProyectoFinal.Controllers
                 });
             }
 
-            // 🔹 Calcular valores totales
             var totalPortfolioValue = transacciones.Sum(t => t.Monto);
             decimal totalCompras = transacciones.Where(t => t.Accion.ToLower() == "buy" || t.Accion.ToLower() == "compra").Sum(t => t.Monto);
             decimal totalVentas = transacciones.Where(t => t.Accion.ToLower() == "sale" || t.Accion.ToLower() == "venta").Sum(t => t.Monto);
             decimal totalPL = totalVentas - totalCompras;
 
-            // 🔹 Calcular el peor desempeño (el que menos monto tiene)
             string worstPerformer = transacciones
                 .GroupBy(t => t.CryptoCode)
                 .OrderBy(g => g.Sum(x => x.Monto))
                 .Select(g => g.Key)
                 .FirstOrDefault() ?? "-";
 
-            // 🔹 Fecha actual
             var hoy = DateTime.Today;
             var transaccionesHoy = transacciones.Where(t => t.FechaHora.Date == hoy);
             decimal dailyPerformance = transaccionesHoy.Sum(t => t.Monto);
 
-            // 🔹 Construir objeto resumen
             var resumen = new
             {
                 totalPortfolioValue,
