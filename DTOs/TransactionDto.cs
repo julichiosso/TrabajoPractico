@@ -1,14 +1,25 @@
-﻿namespace TrabajoPractico.DTOs
-{
-    public class TransactionDto
-    {
-        public string CryptoCode { get; set; } = string.Empty;        // ejemplo: "usdc"
-        public string Accion { get; set; } = string.Empty;          // "purchase" o "sale"
-        public int IdCliente { get; set; }
-        public decimal Cantidad { get; set; }
+﻿using System.Text.Json.Serialization;
 
-        //public int ClientId { get; set; }                // ID del cliente
-        public decimal MontoARS { get; set; }        // Cantidad de criptomonedas
-        public DateTime FechaHora { get; set; }               // Fecha/hora de la operación
-    }
+public class TransactionDto
+{
+    [JsonPropertyName("id")]
+    public int Id { get; set; }
+
+    [JsonPropertyName("cryptoCode")]
+    public string CryptoCode { get; set; } = string.Empty;
+
+    [JsonPropertyName("action")]
+    public string Action { get; set; } = string.Empty;
+
+    [JsonPropertyName("clientId")]
+    public int ClientId { get; set; }
+
+    [JsonPropertyName("cryptoAmount")]
+    public decimal CryptoAmount { get; set; }
+
+    [JsonPropertyName("montoARS")]
+    public decimal MontoARS { get; set; }
+
+    [JsonPropertyName("fechaHora")]
+    public DateTime FechaHora { get; set; }
 }
