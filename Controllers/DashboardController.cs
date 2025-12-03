@@ -18,6 +18,7 @@ namespace ProyectoFinal.Controllers
             _httpClient = new HttpClient();
         }
 
+<<<<<<< HEAD
         // Devuelve todos los datos del dashboard en un único objeto JSON
 
         [HttpGet]
@@ -25,6 +26,13 @@ namespace ProyectoFinal.Controllers
         {
             var transacciones = await _context.Transaccions
                 .OrderByDescending(t => t.Datetime)
+=======
+        [HttpGet]
+        public async Task<IActionResult> GetDashboardData()
+        {
+            var transacciones = await _context.Transacciones
+                .OrderByDescending(t => t.FechaHora)
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
                 .ToListAsync();
 
             if (transacciones.Count == 0)
@@ -39,13 +47,19 @@ namespace ProyectoFinal.Controllers
                 });
             }
 
+<<<<<<< HEAD
             //Criptos unicas
+=======
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             var cryptos = transacciones
                 .Select(t => t.CryptoCode.ToLower())
                 .Distinct()
                 .ToList();
 
+<<<<<<< HEAD
             // Obtener precios desde CriptoYa
+=======
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             var preciosActuales = new Dictionary<string, decimal>();
             foreach (var crypto in cryptos)
             {
@@ -63,27 +77,42 @@ namespace ProyectoFinal.Controllers
                 }
             }
 
+<<<<<<< HEAD
             //Calcular valor total de la cartera
+=======
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             decimal totalPortfolioValue = 0;
             foreach (var t in transacciones)
             {
                 if (preciosActuales.TryGetValue(t.CryptoCode.ToLower(), out var precio))
                 {
+<<<<<<< HEAD
                     var valorActual = t.CryptoAmount * precio;
                     totalPortfolioValue += t.Action.ToLower() == "buy" ? valorActual : -valorActual;
                 }
             }
 
             //Rendimiento y perdida/ganancia (simplificado)
+=======
+                    var valorActual = t.Cantidad * precio;
+                    totalPortfolioValue += t.Accion.ToLower() == "buy" ? valorActual : -valorActual;
+                }
+            }
+
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             decimal performance24h = 0;
             decimal totalPL = 0;
             string worstPerformer = "-";
 
+<<<<<<< HEAD
             //ultimas 5 transacciones
+=======
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             var recientes = transacciones
                 .Take(5)
                 .Select(t => new
                 {
+<<<<<<< HEAD
                     clienteId = t.ClientId,
                     crypto = t.CryptoCode,
                     tipo = t.Action,
@@ -94,6 +123,17 @@ namespace ProyectoFinal.Controllers
                 .ToList();
 
             //Devolver el resumen
+=======
+                    clienteId = t.ClienteId,
+                    crypto = t.CryptoCode,
+                    tipo = t.Accion,
+                    cantidad = t.Cantidad,
+                    monto = t.Monto,
+                    fecha = t.FechaHora.ToString("dd/MM/yyyy HH:mm")
+                })
+                .ToList();
+
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             return Ok(new
             {
                 totalPortfolioValue,
@@ -104,12 +144,19 @@ namespace ProyectoFinal.Controllers
             });
         }
 
+<<<<<<< HEAD
         // Endpoint específico que usa el front en Dashboard.vue
 
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary()
         {
             var transacciones = await _context.Transaccions.ToListAsync();
+=======
+        [HttpGet("summary")]
+        public async Task<IActionResult> GetSummary()
+        {
+            var transacciones = await _context.Transacciones.ToListAsync();
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
 
             if (!transacciones.Any())
             {
@@ -126,6 +173,7 @@ namespace ProyectoFinal.Controllers
                 });
             }
 
+<<<<<<< HEAD
             //Calcular valores totales
             var totalPortfolioValue = transacciones.Sum(t => t.Money);
             decimal totalCompras = transacciones.Where(t => t.Action.ToLower() == "buy" || t.Action.ToLower() == "compra").Sum(t => t.Money);
@@ -145,6 +193,23 @@ namespace ProyectoFinal.Controllers
             decimal dailyPerformance = transaccionesHoy.Sum(t => t.Money);
 
             //Construir objeto resumen
+=======
+            var totalPortfolioValue = transacciones.Sum(t => t.Monto);
+            decimal totalCompras = transacciones.Where(t => t.Accion.ToLower() == "buy" || t.Accion.ToLower() == "compra").Sum(t => t.Monto);
+            decimal totalVentas = transacciones.Where(t => t.Accion.ToLower() == "sale" || t.Accion.ToLower() == "venta").Sum(t => t.Monto);
+            decimal totalPL = totalVentas - totalCompras;
+
+            string worstPerformer = transacciones
+                .GroupBy(t => t.CryptoCode)
+                .OrderBy(g => g.Sum(x => x.Monto))
+                .Select(g => g.Key)
+                .FirstOrDefault() ?? "-";
+
+            var hoy = DateTime.Today;
+            var transaccionesHoy = transacciones.Where(t => t.FechaHora.Date == hoy);
+            decimal dailyPerformance = transaccionesHoy.Sum(t => t.Monto);
+
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             var resumen = new
             {
                 totalPortfolioValue,

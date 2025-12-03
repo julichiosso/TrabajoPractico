@@ -13,13 +13,18 @@ namespace TrabajoPractico.Controllers
     public class ClienteController : ControllerBase
     {
         private readonly AppDbContext _context;
+<<<<<<< HEAD
 
+=======
+   
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
 
         public ClienteController(AppDbContext context)
         {
             _context = context;
         }
 
+<<<<<<< HEAD
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ClientDTO>>> GetClients()
         {
@@ -96,11 +101,73 @@ namespace TrabajoPractico.Controllers
             };
 
             return Ok(respuesta); 
+=======
+
+        [HttpGet]
+        public async Task<ActionResult<IEnumerable<ClienteDTO>>> Get()
+        {
+            var clientes = await _context.Clientes.OrderBy(c => c.FechaRegistro).ToListAsync();
+
+            var clientesDatos = clientes.Select(c => new ClienteDTO
+            {
+                Id = c.Id,
+                Nombre = c.Nombre,
+                Email = c.Email
+            }).ToList();
+            return Ok(clientesDatos);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<ActionResult<ClienteDTO>> Get(int id)
+        {
+            var clientes = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (clientes == null)
+                return NotFound();
+
+            var dto = new ClienteDTO
+            {
+                Id = clientes.Id,
+                Nombre = clientes.Nombre,
+                Email = clientes.Email
+            };
+
+            return Ok(dto);
+        }
+
+        [HttpPost]
+        public async Task<ActionResult<ClienteDTO>> Post(ClienteDTO dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var client = new Client
+            {
+                Nombre = dto.Nombre!,
+                Email = dto.Email!,
+                FechaRegistro = DateTime.UtcNow
+            };
+
+            _context.Clientes.Add(client);
+            await _context.SaveChangesAsync();
+
+            var response = new ClienteDTO
+            {
+                Id = client.Id, 
+                Nombre = client.Nombre,
+                Email = client.Email,
+                FechaRegistro = client.FechaRegistro
+            };
+
+            return CreatedAtAction(nameof(Get), new { id = client.Id }, response);
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Put(int id, Client cliente)
         {
+<<<<<<< HEAD
             if (cliente == null)
             {
                 return BadRequest("Debe enviar los datos del cliente.");
@@ -135,12 +202,19 @@ namespace TrabajoPractico.Controllers
 
             await _context.SaveChangesAsync();
 
+=======
+            if (id != cliente.Id)
+                return BadRequest();
+            _context.Entry(cliente).State = EntityState.Modified;
+            await _context.SaveChangesAsync();
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
             return NoContent();
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
+<<<<<<< HEAD
             var cliente = await _context.Clients
                 .FirstOrDefaultAsync(c => c.Id == id);
             if (cliente == null)
@@ -152,5 +226,18 @@ namespace TrabajoPractico.Controllers
             await _context.SaveChangesAsync();
             return NoContent();
         }
+=======
+            var cliente = await _context.Clientes
+                .FirstOrDefaultAsync(c => c.Id == id);
+            if (cliente == null)
+            {
+                return NotFound();
+            }
+            _context.Clientes.Remove(cliente);
+            await _context.SaveChangesAsync();
+            return NoContent();
+        }
+
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
     }
 }
