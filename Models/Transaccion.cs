@@ -12,13 +12,12 @@ namespace ProyectoFinal.Models
         [ForeignKey("Criptomoneda")]
         public required string CryptoCode { get; set; }  
 
-        //public Criptomoneda Criptomoneda { get; set; }
 
         [Required(ErrorMessage = "El cliente es obligatorio.")]
         [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un cliente válido.")]
         public int ClienteId { get; set; }
 
-        // public Clientes Clientes { get; set; }
+        
 
 
 

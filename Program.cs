@@ -1,44 +1,64 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using ProyectoFinal.Models;
+using System.Globalization;
 using TrabajoPractico.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
 // Agregar DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"))
 );
+
+<<<<<<< HEAD
+//Configurar CORS antes de controllers
+=======
+// 🔸 Configurar CORS antes de controllers
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("PermitirCors", policy =>
+    options.AddPolicy("PermitirTodo", policy =>
     {
-        policy.AllowAnyOrigin()// o el puerto que uses
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy
+            .SetIsOriginAllowed(origin => true) // Acepta cualquier origen (incluye localhost)
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-app.UseCors("PermitirCors");
+<<<<<<< HEAD
+//Middleware de CORS antes de Swagger y controllers
+app.UseCors("PermitirTodo");
 
-// Configure the HTTP request pipeline.
+// Swagger
+=======
+// 🔸 Middleware de CORS antes de Swagger y controllers
+app.UseCors("PermitirTodo");
+
+// 🔸 Swagger
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-
-
-app.UseHttpsRedirection();
+<<<<<<< HEAD
+//NO redirección a HTTPS (solo HTTP)
+///app.UseHttpsRedirection();
+=======
+// 🔸 NO redirección a HTTPS (solo HTTP)
+/// app.UseHttpsRedirection();
+>>>>>>> 1207c7b247e4aae2cdebf2a3f5b43888870a5e16
 
 app.UseAuthorization();
 
